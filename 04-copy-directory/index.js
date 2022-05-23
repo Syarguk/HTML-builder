@@ -1,27 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 const pathSourceDir = path.join(__dirname, 'files');
+const pathTargetDir = path.join(__dirname, 'files-copy');
 
-fs.stat(path.join(__dirname, 'files-copy'), (err) => {
-    if (err) {/* throw err; */}
-    else { const pathDir = path.join(__dirname, 'files-copy');
-        fs.readdir(pathDir, (err, files) => {
-            if (err) throw err;
-            let arrFiles = [];
-            files.forEach(file => { arrFiles.push(file)});
-            arrFiles.forEach(file => {
-                fs.unlink(path.join(pathDir, file), err => {if (err) throw err});
-            })
-        })
+copyDirectory(pathSourceDir, pathTargetDir);
+async function copyDirectory(source, target) {
+    await fs.promises.mkdir(target, { recursive: true });
+    const filesTarg = await fs.promises.readdir(target);
+    for (let fileT of filesTarg) {
+        await fs.promises.unlink(path.join(target, fileT));
     }
-});
-fs.readdir(pathSourceDir, (err, files) => {
-    if (err) throw err;
-    fs.mkdir(path.join(__dirname, 'files-copy'), { recursive: true }, (err) => {
-        if (err) throw err;
-        files.forEach(file => {
-            fs.copyFile(path.join(pathSourceDir, file), path.join(__dirname, 'files-copy', file), () => {
-            });
-        })
+    const filesSour = await fs.promises.readdir(source);
+    for (let fileS of filesSour) {
+        await fs.promises.copyFile(path.join(source, fileS), path.join(target, fileS));
     }
-)});
+}
