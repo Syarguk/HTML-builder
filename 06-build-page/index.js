@@ -1,78 +1,50 @@
-const fs = require('fs')
+const fs = require('fs');
 const path = require('path');
-const pathComp = path.join(__dirname, 'components');
-const pathStyl = path.join(__dirname, 'styles');
-const pathAss = path.join(__dirname, 'assets');
+const pathSoursAss = path.join(__dirname, 'assets');
+const pathTargAss = path.join(__dirname, 'project-dist', 'assets');
+const pathSoursCss = path.join(__dirname, 'styles');
+const pathTargetCssBundle = path.join(__dirname, 'project-dist', 'style.css');
+const pathComponents = path.join(__dirname, 'components');
+const pathTargetIndex = path.join(__dirname, 'project-dist', 'index.html');
 
-fs.mkdir(path.join(__dirname, 'project-dist'), err => {
-    if (err) clearFiles(path.join(__dirname, 'project-dist'));
-});
-function clearFiles(path) {
-    fs.promises.readdir(path, (err, files) => {
-        if (err) throw err;
-        files.forEach(file => {
-            fs.stat(path.join(path, stats), errSt => {
-                if (errSt) throw errSt;
-                if (stats.isDirectory()) {
-                    clearFiles(path.join(path, file));
-                } else {
-                    fs.unlink(path.join(path, file), err => {if (err) throw err});
-                }
-            });
-        });
-    });
-}
-fs.readFile(path.join(__dirname, 'template.html'), (err, data) => {
-    if(err) throw err;
-    let template = data.toString();
-    fs.readdir(pathComp, (err, files) => {
-        if(err) throw err;
-        files.forEach(file => {
-            let nameFile = file.slice(0, file.indexOf("."));
-            fs.readFile(path.join(pathComp, file), (err, dataCom) => {
-                if(err) throw err;
-                template = template.replace("{{" + nameFile + "}}", dataCom.toString());
-                fs.writeFile(path.join(__dirname, 'project-dist', 'index.html'), template, err => {
-                    if (err) throw err;
-                });
-            })
-        })
-    })
-});
-fs.writeFile(path.join(__dirname, 'project-dist', 'style.css'), "", (err) => { if(err) throw err});
-fs.readdir(pathStyl, (err, files) => {
-    if (err) {console.log(err);}
-    else {files.forEach(file => {
-        if (file.includes("css")) {
-            fs.readFile(path.join(pathStyl, file), (err, data) => {
-                if (err) console.log(err);
-                else {
-                    fs.appendFile(
-                        path.join(__dirname, 'project-dist', 'style.css'),
-                        "\n" + data.toString(),
-                        err => {if (err) throw err}
-                    );
-                }
-            });
-        }
-    })};
-});
-fs.mkdir(path.join(__dirname, 'project-dist', 'assets'), { recursive: true }, err => {if (err) throw err});
-fs.readdir(pathAss, {withFileTypes: true}, (err, dirs) => {
-    if (err) throw err;
-    for (let dir of dirs) {
-        let pathDir = path.join(pathAss, dir.name);
-        const pathProdAss = path.join(__dirname, 'project-dist', 'assets');
-        fs.mkdir(path.join(pathProdAss, dir.name), { recursive: true }, err => {
-            if(err) throw err;
-            fs.readdir(pathDir, (err, files) => {
-                if (err) throw err;
-                for (let file of files) {
-                    fs.copyFile(path.join(pathAss, dir.name, file), path.join(pathProdAss, dir.name, file), err => {
-                        if (err) throw err;
-                    });
-                }
-            });
-        });
+copyPastDirectory(pathSoursAss, pathTargAss);
+async function copyPastDirectory(source, target) {
+    await fs.promises.mkdir(target, { recursive: true });
+    const filesTar = await fs.promises.readdir(target);
+    for (let fileT of filesTar) {
+        const status = await fs.promises.stat(path.join(target, fileT));
+        if (status.isFile()) await fs.promises.unlink(path.join(target, fileT));
     }
-});
+    const filesSour = await fs.promises.readdir(source);
+    for (let file of filesSour) {
+        const stats = await fs.promises.stat(path.join(source, file));
+        if (stats.isDirectory()) {
+            await copyPastDirectory(path.join(source, file), path.join(target, file));
+        } else {
+            await fs.promises.copyFile(path.join(source, file), path.join(target, file));
+        }
+    }
+}
+
+createCssBundle(pathSoursCss, pathTargetCssBundle);
+async function createCssBundle(pathSource, pathTarget) {
+    const files = await fs.promises.readdir(pathSource);
+    await fs.promises.writeFile(pathTarget, "");
+    for (let file of files) {
+        let data = await fs.promises.readFile(path.join(pathSource, file));
+        await fs.promises.appendFile(path.join(pathTarget), data.toString() + "\n");
+    }
+}
+
+createIndexFile(pathComponents, pathTargetIndex);
+async function createIndexFile(pathSource, pathTarget) {
+    let dataSource = await fs.promises.readFile(path.join(__dirname, 'template.html'));
+    const files = await fs.promises.readdir(pathSource);
+    for (let file of files) {
+        let nameFile = file.slice(0, file.indexOf("."));
+        let data = await fs.promises.readFile(path.join(pathSource, file));
+        dataSource = dataSource.toString().replace("{{" + nameFile + "}}", data.toString());
+    }
+    await fs.promises.writeFile(pathTarget, dataSource);
+}
+// end :-)
